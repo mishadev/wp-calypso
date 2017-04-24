@@ -3,7 +3,7 @@
  */
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { trim, debounce } from 'lodash';
+import { trim, debounce, map, omit } from 'lodash';
 import { localize } from 'i18n-calypso';
 import page from 'page';
 import qs from 'qs';
@@ -123,6 +123,9 @@ class FollowingManage extends Component {
 
 export default connect(
 	( state, ownProps ) => ( {
-		searchResults: getReaderFeedsForQuery( state, ownProps.sitesQuery ) || [],
+		searchResults: map(
+			getReaderFeedsForQuery( state, ownProps.sitesQuery ) || [],
+			item => omit( item, 'URL' ) // the feed searching gives different urls than /following/mine.
+		)
 	} ),
 )( localize( FollowingManage ) );
