@@ -44,7 +44,7 @@ export function getSiteSettingsSaveRequestStatus( state, siteId ) {
  * @return {Object}        Site settings
  */
 export function getSiteSettings( state, siteId ) {
-	return get( state.siteSettings.items, [ siteId ], null );
+	return get( state, [ 'siteSettings', 'items', siteId ], null );
 }
 
 /**
