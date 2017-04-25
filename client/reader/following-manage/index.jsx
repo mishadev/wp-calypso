@@ -123,9 +123,11 @@ class FollowingManage extends Component {
 
 export default connect(
 	( state, ownProps ) => ( {
+		// the feed searching gives different urls than /following/mine.
+		// therefore we decide to omit it and use the feed_URL from the feed/site
 		searchResults: map(
 			getReaderFeedsForQuery( state, ownProps.sitesQuery ) || [],
-			item => omit( item, 'URL' ) // the feed searching gives different urls than /following/mine.
+			item => omit( item, 'URL' )
 		)
 	} ),
 )( localize( FollowingManage ) );
