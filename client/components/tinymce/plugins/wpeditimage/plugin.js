@@ -161,66 +161,74 @@ function wpEditImage( editor ) {
 	}
 
 	function getShortcode( content ) {
-		return content.replace( /<div (?:id="attachment_|class="mceTemp)[^>]*>([\s\S]+?)<\/div>/g, function( a, b ) {
-			let out = '';
+		return content.replace( /<div (?:id="attachment_|class="mceTemp)[^>]*>([\s\S]+?)<\/div>/g,
+			function( attachmentWrapperDiv, attachmentContent ) {
+				let out = '';
 
-			if ( b.indexOf( '<img ' ) === -1 ) {
-				// Broken caption. The user managed to drag the image out?
-				// Try to return the caption text as a paragraph.
-				out = b.match( /<dd [^>]+>([\s\S]+?)<\/dd>/i );
+				if ( attachmentContent.indexOf( '<img ' ) === -1 ) {
+					// Broken caption. The user managed to drag the image out?
+					// Try to return the caption text as a paragraph.
+					out = attachmentContent.match( /<dd [^>]+>([\s\S]+?)<\/dd>/i );
 
-				if ( out && out[ 1 ] ) {
-					return '<p>' + out[ 1 ] + '</p>';
-				}
-
-				return '';
-			}
-
-			out = b.replace( /\s*<dl ([^>]+)>\s*<dt [^>]+>([\s\S]+?)<\/dt>\s*<dd [^>]+>([\s\S]*?)<\/dd>\s*<\/dl>\s*/gi, function( a, b, c, caption ) {
-				let id, classes, width;
-
-				width = c.match( /width="([0-9]*)"/ );
-				width = ( width && width[ 1 ] ) ? width[ 1 ] : '';
-
-				classes = b.match( /class="([^"]*)"/ );
-				classes = ( classes && classes[ 1 ] ) ? classes[ 1 ] : '';
-				const align = classes.match( /align[a-z]+/i ) || 'alignnone';
-
-				if ( ! width || ! caption ) {
-					if ( 'alignnone' !== align[ 0 ] ) {
-						c = c.replace( /><img/, ' class="' + align[ 0 ] + '"><img' );
+					if ( out && out[ 1 ] ) {
+						return '<p>' + out[ 1 ] + '</p>';
 					}
-					return c;
+
+					return '';
 				}
 
-				id = b.match( /id="([^"]*)"/ );
-				id = ( id && id[ 1 ] ) ? id[ 1 ] : '';
+				out = attachmentContent.replace( /\s*<dl ([^>]+)>\s*<dt [^>]+>([\s\S]+?)<\/dt>\s*<dd [^>]+>([\s\S]*?)<\/dd>\s*<\/dl>\s*/gi,
+					function( attachmentDl, attachmentDlAttributes, attachmentImageHtml, attachmentCaption ) {
+						let id, classes, width;
 
-				classes = classes.replace( /wp-caption ?|align[a-z]+ ?/gi, '' );
+						width = attachmentImageHtml.match( /width="([0-9]*)"/ );
+						width = ( width && width[ 1 ] ) ? width[ 1 ] : '';
 
-				if ( classes ) {
-					classes = ' class="' + classes + '"';
+						classes = attachmentDlAttributes.match( /class="([^"]*)"/ );
+						classes = ( classes && classes[ 1 ] ) ? classes[ 1 ] : '';
+						const align = classes.match( /align[a-z]+/i ) || 'alignnone';
+
+						if ( ! width || ! attachmentCaption ) {
+							if ( 'alignnone' !== align[ 0 ] ) {
+								attachmentImageHtml = attachmentImageHtml.replace( /><img/, ' class="' + align[ 0 ] + '"><img' );
+							}
+							return attachmentImageHtml;
+						}
+
+						id = attachmentDlAttributes.match( /id="([^"]*)"/ );
+						id = ( id && id[ 1 ] ) ? id[ 1 ] : '';
+
+						classes = classes.replace( /wp-caption ?|align[a-z]+ ?/gi, '' );
+
+						if ( classes ) {
+							classes = ' class="' + classes + '"';
+						}
+
+						attachmentCaption = attachmentCaption.replace( /\r\n|\r/g, '\n' ).replace( /<[a-zA-Z0-9]+( [^<>]+)?>/g,
+							function( attachmentCaptionWithBreaks ) {
+								// no line breaks inside HTML tags
+								return attachmentCaptionWithBreaks.replace( /[\r\n\t]+/, ' ' );
+							}
+						);
+
+						// convert remaining line breaks to <br>
+						attachmentCaption = attachmentCaption.replace( /\s*\n\s*/g, '<br />' );
+
+						return '[caption id="' + id + '" align="' + align + '" width="' + width + '"' + classes + ']' +
+								attachmentImageHtml + ' ' + attachmentCaption + '[/caption]';
+					}
+				);
+
+				if ( out.indexOf( '[caption' ) === -1 ) {
+					// the caption html seems broken, try to find the image that may be wrapped in a link
+					// and may be followed by <p> with the caption text.
+					out = attachmentContent.replace( /[\s\S]*?((?:<a [^>]+>)?<img [^>]+>(?:<\/a>)?)(<p>[\s\S]*<\/p>)?[\s\S]*/gi,
+						'<p>$1</p>$2' );
 				}
 
-				caption = caption.replace( /\r\n|\r/g, '\n' ).replace( /<[a-zA-Z0-9]+( [^<>]+)?>/g, function( a ) {
-					// no line breaks inside HTML tags
-					return a.replace( /[\r\n\t]+/, ' ' );
-				} );
-
-				// convert remaining line breaks to <br>
-				caption = caption.replace( /\s*\n\s*/g, '<br />' );
-
-				return '[caption id="' + id + '" align="' + align + '" width="' + width + '"' + classes + ']' + c + ' ' + caption + '[/caption]';
-			} );
-
-			if ( out.indexOf( '[caption' ) === -1 ) {
-				// the caption html seems broken, try to find the image that may be wrapped in a link
-				// and may be followed by <p> with the caption text.
-				out = b.replace( /[\s\S]*?((?:<a [^>]+>)?<img [^>]+>(?:<\/a>)?)(<p>[\s\S]*<\/p>)?[\s\S]*/gi, '<p>$1</p>$2' );
+				return out;
 			}
-
-			return out;
-		} );
+		);
 	}
 
 	// Verify HTML in captions
