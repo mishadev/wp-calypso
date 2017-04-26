@@ -10,6 +10,9 @@ import deepFreeze from 'deep-freeze';
 import { useSandbox } from 'test/helpers/use-sinon';
 import {
 	MEDIA_DELETE,
+	SITE_DELETE,
+	SITE_DELETE_FAILURE,
+	SITE_DELETE_SUCCESS,
 	SITE_DELETE_RECEIVE,
 	JETPACK_DISCONNECT_RECEIVE,
 	SITE_RECEIVE,
@@ -28,7 +31,7 @@ import {
 	SERIALIZE,
 	DESERIALIZE
 } from 'state/action-types';
-import reducer, { items, requestingAll, requesting } from '../reducer';
+import reducer, { items, requestingAll, requesting, deleting } from '../reducer';
 
 describe( 'reducer', () => {
 	useSandbox( ( sandbox ) => {
@@ -38,6 +41,7 @@ describe( 'reducer', () => {
 	it( 'should export expected reducer keys', () => {
 		expect( reducer( undefined, {} ) ).to.have.keys( [
 			'connection',
+			'deleting',
 			'domains',
 			'requestingAll',
 			'items',
@@ -197,7 +201,7 @@ describe( 'reducer', () => {
 
 			const state = items( original, {
 				type: SITE_DELETE_RECEIVE,
-				site: { ID: 2916284, name: 'WordPress.com Example Blog' }
+				siteId: 2916284
 			} );
 
 			expect( state ).to.eql( {
@@ -684,6 +688,72 @@ describe( 'reducer', () => {
 			} );
 			const state = requesting( original, {
 				type: SITE_REQUEST_FAILURE,
+				siteId: 77203074
+			} );
+
+			expect( state ).to.eql( {
+				2916284: false,
+				77203074: false
+			} );
+		} );
+	} );
+
+	describe( 'deleting()', () => {
+		it( 'should default to an empty object', () => {
+			const state = deleting( undefined, {} );
+
+			expect( state ).to.eql( {} );
+		} );
+
+		it( 'should track site delete started', () => {
+			const state = deleting( undefined, {
+				type: SITE_DELETE,
+				siteId: 2916284
+			} );
+
+			expect( state ).to.eql( {
+				2916284: true
+			} );
+		} );
+
+		it( 'should accumulate site deletes started', () => {
+			const original = deepFreeze( {
+				2916284: true
+			} );
+			const state = deleting( original, {
+				type: SITE_DELETE,
+				siteId: 77203074
+			} );
+
+			expect( state ).to.eql( {
+				2916284: true,
+				77203074: true
+			} );
+		} );
+
+		it( 'should track site delete succeeded', () => {
+			const original = deepFreeze( {
+				2916284: true,
+				77203074: true
+			} );
+			const state = deleting( original, {
+				type: SITE_DELETE_SUCCESS,
+				siteId: 2916284
+			} );
+
+			expect( state ).to.eql( {
+				2916284: false,
+				77203074: true
+			} );
+		} );
+
+		it( 'should track site delete failed', () => {
+			const original = deepFreeze( {
+				2916284: false,
+				77203074: true
+			} );
+			const state = deleting( original, {
+				type: SITE_DELETE_FAILURE,
 				siteId: 77203074
 			} );
 
