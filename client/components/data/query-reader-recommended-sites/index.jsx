@@ -9,8 +9,8 @@ import { connect } from 'react-redux';
  */
 import { requestRecommendedSites } from 'state/reader/recommended-sites/actions';
 
-class QueryReaderFeed extends Component {
-	static propTypes: {
+class QueryReaderRecommendedSites extends Component {
+	static propTypes = {
 		seed: PropTypes.number,
 	};
 
@@ -19,7 +19,7 @@ class QueryReaderFeed extends Component {
 	} )
 
 	componentWillMount() {
-		this.props.requestRecommnededSites( { seed: this.props.seed } );
+		this.props.requestRecommendedSites( { seed: this.props.seed } );
 	}
 
 	componentWillReceiveProps( nextProps ) {
@@ -31,4 +31,4 @@ class QueryReaderFeed extends Component {
 	}
 }
 
-export default connect( null, { requestRecommendedSites } )( QueryReaderFeed );
+export default connect( null, { requestRecommendedSites } )( QueryReaderRecommendedSites );

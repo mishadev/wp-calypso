@@ -41,8 +41,8 @@ class SitesWindowScroller extends Component {
 					<div key={ key } style={ style } className="following-manage__sites-window-scroller-row-wrapper" >
 							<ConnectedSubscriptionListItem
 								url={ site.URL }
-								feedId={ +site.feed_ID }
-								siteId={ +site.blog_ID }
+								feedId={ +( site.feed_ID || site.feedId ) }
+								siteId={ +( site.blog_ID || site.blogId || site.siteId ) }
 								onLoad={ measure }
 							/>
 					</div>

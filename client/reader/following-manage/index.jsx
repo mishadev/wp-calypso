@@ -3,7 +3,7 @@
  */
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { trim, debounce } from 'lodash';
+import { trim, debounce, random, take } from 'lodash';
 import { localize } from 'i18n-calypso';
 import page from 'page';
 import qs from 'qs';
@@ -15,8 +15,9 @@ import CompactCard from 'components/card/compact';
 import DocumentHead from 'components/data/document-head';
 import SearchInput from 'components/search';
 import ReaderMain from 'components/reader-main';
-import { getReaderFeedsForQuery } from 'state/selectors';
+import { getReaderFeedsForQuery, getReaderRecommendedSites } from 'state/selectors';
 import QueryReaderFeedsSearch from 'components/data/query-reader-feeds-search';
+import QueryReaderRecommendedSites from 'components/data/query-reader-recommended-sites';
 import FollowingManageSubscriptions from './subscriptions';
 import SitesWindowScroller from './sites-window-scroller';
 import MobileBackToSidebar from 'components/mobile-back-to-sidebar';
@@ -32,7 +33,10 @@ class FollowingManage extends Component {
 		sitesQuery: '',
 	}
 
-	state = { width: 800 };
+	state = {
+		width: 800,
+		seed: random( 0, 10000 )
+	}
 
 	// TODO make this common between our different search pages?
 	updateQuery = ( newValue ) => {
@@ -87,8 +91,9 @@ class FollowingManage extends Component {
 	}
 
 	render() {
-		const { sitesQuery, subsQuery, translate, searchResults } = this.props;
+		const { sitesQuery, subsQuery, translate, searchResults, getRecommendedSites } = this.props;
 		const searchPlaceholderText = translate( 'Search millions of sites' );
+		const recommendedSites = take( getRecommendedSites( this.state.seed ), 2 );
 
 		return (
 			<ReaderMain className="following-manage">
@@ -97,6 +102,7 @@ class FollowingManage extends Component {
 					<h1>{ translate( 'Manage Followed Sites' ) }</h1>
 				</MobileBackToSidebar>
 				{ searchResults.length === 0 && <QueryReaderFeedsSearch query={ sitesQuery } /> }
+				{ recommendedSites.length === 0 && <QueryReaderRecommendedSites seed={ this.state.seed } /> }
 				<h2 className="following-manage__header">{ translate( 'Follow Something New' ) }</h2>
 				<div ref={ this.handleStreamMounted } />
 				<div className="following-manage__fixed-area" ref={ this.handleSearchBoxMounted }>
@@ -114,6 +120,12 @@ class FollowingManage extends Component {
 						</SearchInput>
 					</CompactCard>
 				</div>
+				{ ! sitesQuery && (
+					<div>
+						<h1> Recommended Sites </h1>
+						<SitesWindowScroller sites={ recommendedSites } width={ this.state.width } />
+					</div>
+				) }
 				{ ! sitesQuery && <FollowingManageSubscriptions width={ this.state.width } query={ subsQuery } /> }
 				{ !! sitesQuery && <SitesWindowScroller sites={ searchResults } width={ this.state.width } /> }
 			</ReaderMain>
@@ -124,5 +136,6 @@ class FollowingManage extends Component {
 export default connect(
 	( state, ownProps ) => ( {
 		searchResults: getReaderFeedsForQuery( state, ownProps.sitesQuery ) || [],
+		getRecommendedSites: seed => getReaderRecommendedSites( state, seed ),
 	} ),
 )( localize( FollowingManage ) );

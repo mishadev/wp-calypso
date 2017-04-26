@@ -65,6 +65,7 @@ export getReaderFeedsForQuery from './get-reader-feeds-for-query';
 export getReaderFollowedTags from './get-reader-followed-tags';
 export getReaderFollowForBlog from './get-reader-follow-for-blog';
 export getReaderFollows from './get-reader-follows';
+export getReaderRecommendedSites from './get-reader-recommended-sites';
 export getReaderTags from './get-reader-tags';
 export getReaderTeams from './get-reader-teams';
 export getSharingButtons from './get-sharing-buttons';
