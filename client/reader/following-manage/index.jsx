@@ -21,6 +21,7 @@ import QueryReaderRecommendedSites from 'components/data/query-reader-recommende
 import FollowingManageSubscriptions from './subscriptions';
 import SitesWindowScroller from './sites-window-scroller';
 import MobileBackToSidebar from 'components/mobile-back-to-sidebar';
+import ConnectedSubscriptionListItem from './connected-subscription-list-item';
 
 class FollowingManage extends Component {
 	static propTypes = {
@@ -123,7 +124,24 @@ class FollowingManage extends Component {
 				{ ! sitesQuery && (
 					<div>
 						<h1> Recommended Sites </h1>
-						<SitesWindowScroller sites={ recommendedSites } width={ this.state.width } />
+						{ recommendedSites && recommendedSites.length === 2 &&
+							<div className="following-manage__site-recs">
+								<div key="site-rec-1" className="following-manage__site-rec" >
+									<ConnectedSubscriptionListItem
+										url={ recommendedSites[ 0 ].url }
+										feedId={ recommendedSites[ 0 ].feedId }
+										siteId={ recommendedSites[ 0 ].blogId }
+									/>
+								</div>
+								<div key="site-rec-2" className="following-manage__site-rec" >
+									<ConnectedSubscriptionListItem
+										url={ recommendedSites[ 1 ].url }
+										feedId={ recommendedSites[ 1 ].feedId }
+										siteId={ recommendedSites[ 1 ].blogId }
+									/>
+								</div>
+							</div>
+						}
 					</div>
 				) }
 				{ ! sitesQuery && <FollowingManageSubscriptions width={ this.state.width } query={ subsQuery } /> }
