@@ -17,6 +17,7 @@ import {
 	getDocumentHeadMeta,
 	getDocumentHeadLink
 } from 'state/document-head/selectors';
+import { logToLogstash } from 'state/logstash/actions';
 
 const debug = debugFactory( 'calypso:server-render' );
 const markupCache = new Lru( { max: 3000 } );
@@ -51,6 +52,7 @@ export function render( element, key = JSON.stringify( element ) ) {
 
 			markupCache.set( key, context );
 		}
+
 		const rtsTimeMs = Date.now() - startTime;
 		debug( 'Server render time (ms)', rtsTimeMs );
 
@@ -82,6 +84,13 @@ export function serverRender( req, res ) {
 	}
 
 	if ( context.store ) {
+		console.log( 'dispatch log call' );
+		context.store.dispatch( logToLogstash( {
+			feature: 'calypso_ssr',
+			message: 'render cache keys',
+			extra: markupCache.keys,
+		} ) );
+
 		title = getDocumentHeadFormattedTitle( context.store.getState() );
 		metas = getDocumentHeadMeta( context.store.getState() );
 		links = getDocumentHeadLink( context.store.getState() );
