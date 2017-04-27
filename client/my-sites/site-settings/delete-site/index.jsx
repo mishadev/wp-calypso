@@ -22,18 +22,20 @@ import config from 'config';
 import DeleteSiteWarningDialog from 'my-sites/site-settings/delete-site-warning-dialog';
 import Dialog from 'components/dialog';
 import { getSitePurchases, hasLoadedSitePurchasesFromServer } from 'state/purchases/selectors';
-import { getSelectedSite, getSelectedSiteId } from 'state/ui/selectors';
+import { getSelectedSite, getSelectedSiteId, getSelectedSiteSlug } from 'state/ui/selectors';
+import { getSite, getSiteOption, isDeletingSite } from 'state/sites/selectors';
 import Notice from 'components/notice';
-import notices from 'notices';
 import purchasesPaths from 'me/purchases/paths';
 import QuerySitePurchases from 'components/data/query-site-purchases';
-import SiteListActions from 'lib/sites-list/actions';
+import { deleteSite } from 'state/sites/actions';
+import { setSelectedSiteId } from 'state/ui/actions';
 
 class DeleteSite extends Component {
 
 	static propTypes = {
-		site: PropTypes.object,
 		siteId: PropTypes.number,
+		siteDomain: PropTypes.string,
+		siteSlug: PropTypes.string,
 		sitePurchases: PropTypes.array,
 		hasLoadedSitePurchasesFromServer: PropTypes.bool,
 		translate: PropTypes.func.isRequired,
@@ -47,34 +49,98 @@ class DeleteSite extends Component {
 	};
 
 	renderNotice() {
-		const { site, translate } = this.props;
+		const { siteDomain, translate } = this.props;
 
-		if ( ! site ) {
+		if ( ! siteDomain ) {
 			return null;
 		}
 
 		return (
 			<Notice status="is-warning" showDismiss={ false }>
-				{ translate( '{{strong}}%(domain)s{{/strong}} will be unavailable in the future.', {
+				{ translate( '{{strong}}%(siteDomain)s{{/strong}} will be unavailable in the future.', {
 					components: {
 						strong: <strong />
 					},
 					args: {
-						domain: site.domain
+						siteDomain
 					}
 				} ) }
 			</Notice>
 		);
 	}
 
+	handleDeleteSiteClick = ( event ) => {
+		event.preventDefault();
+
+		if ( ! this.props.hasLoadedSitePurchasesFromServer ) {
+			return;
+		}
+
+		const hasActiveSubscriptions = some( this.props.sitePurchases, 'active' );
+
+		if ( hasActiveSubscriptions ) {
+			this.setState( { showWarningDialog: true } );
+		} else {
+			this.setState( { showConfirmDialog: true } );
+		}
+	};
+
+	closeConfirmDialog = () => {
+		this.setState( { showConfirmDialog: false } );
+	};
+
+	closeWarningDialog = () => {
+		this.setState( { showWarningDialog: false } );
+	};
+
+	_goBack = () => {
+		const { siteSlug } = this.props;
+		page( '/settings/general/' + siteSlug );
+	};
+
+	componentWillReceiveProps( nextProps ) {
+		const { siteId } = this.props;
+		const { siteStillExists } = nextProps;
+
+		if ( siteId && ! siteStillExists ) {
+			page.redirect( '/stats' );
+		}
+	}
+
+	_deleteSite = () => {
+		const { siteId } = this.props;
+
+		this.setState( { showConfirmDialog: false } );
+
+		this.props.deleteSite( siteId );
+	}
+
+	_checkSiteLoaded = ( event ) => {
+		const { siteId } = this.props;
+		if ( ! siteId ) {
+			event.preventDefault();
+		}
+	};
+
+	managePurchases() {
+		page( purchasesPaths.purchasesRoot() );
+	}
+
+	onConfirmDomainChange = ( event ) => {
+		this.setState( {
+			confirmDomain: event.target.value
+		} );
+	};
+
 	render() {
-		const { site, siteId, translate } = this.props;
-		const adminURL = site.options && site.options.admin_url ? site.options.admin_url : '',
-			exportLink = config.isEnabled( 'manage/export' ) ? '/settings/export/' + site.slug : adminURL + 'tools.php?page=export-choices',
-			exportTarget = config.isEnabled( 'manage/export' ) ? undefined : '_blank',
-			deleteDisabled = (
+		const { adminUrl, siteDomain, siteId, siteSlug, translate } = this.props;
+		const exportLink = config.isEnabled( 'manage/export' )
+				? '/settings/export/' + siteSlug
+			: adminUrl + 'tools.php?page=export-choices';
+		const exportTarget = config.isEnabled( 'manage/export' ) ? undefined : '_blank';
+		const deleteDisabled = (
 				typeof this.state.confirmDomain !== 'string' ||
-				this.state.confirmDomain.toLowerCase().replace( /\s/g, '' ) !== site.domain
+				this.state.confirmDomain.toLowerCase().replace( /\s/g, '' ) !== siteDomain
 			);
 
 		const deleteButtons = [
@@ -126,7 +192,7 @@ class DeleteSite extends Component {
 					<ActionPanelFooter>
 						<Button
 							className="settings-action-panel__export-button"
-							disabled={ ! this.props.site }
+							disabled={ ! siteId }
 							onClick={ this._checkSiteLoaded }
 							href={ exportLink }
 							target={ exportTarget }>
@@ -167,7 +233,7 @@ class DeleteSite extends Component {
 					<ActionPanelFooter>
 						<Button
 							scary
-							disabled={ ! this.props.site || ! this.props.hasLoadedSitePurchasesFromServer }
+							disabled={ ! siteId || ! this.props.hasLoadedSitePurchasesFromServer }
 							onClick={ this.handleDeleteSiteClick }>
 							<Gridicon icon="trash" />
 							{ strings.deleteSite }
@@ -185,7 +251,7 @@ class DeleteSite extends Component {
 										warn: <span className="delete-site__target-domain" />
 									},
 									args: {
-										siteAddress: site.domain
+										siteAddress: siteId && siteDomain
 									}
 								} )
 						}</p>
@@ -194,6 +260,7 @@ class DeleteSite extends Component {
 							autoCapitalize="off"
 							className="delete-site__confirm-input"
 							type="text"
+							onChange={ this.onConfirmDomainChange }
 							value={ this.state.confirmDomain }
 							/>
 					</Dialog>
@@ -201,95 +268,27 @@ class DeleteSite extends Component {
 			</div>
 		);
 	}
-
-	handleDeleteSiteClick( event ) {
-		event.preventDefault();
-
-		if ( ! this.props.hasLoadedSitePurchasesFromServer ) {
-			return;
-		}
-
-		const hasActiveSubscriptions = some( this.props.sitePurchases, 'active' );
-
-		if ( hasActiveSubscriptions ) {
-			this.setState( { showWarningDialog: true } );
-		} else {
-			this.setState( { showConfirmDialog: true } );
-		}
-	}
-
-	closeConfirmDialog() {
-		this.setState( { showConfirmDialog: false } );
-	}
-
-	closeWarningDialog() {
-		this.setState( { showWarningDialog: false } );
-	}
-
-	_goBack() {
-		const site = this.props.site;
-		page( '/settings/general/' + site.slug );
-	}
-
-	_deleteSite() {
-		const { site, siteId, translate, deleteSite } = this.props;
-		const siteDomain = site.domain;
-
-		this.setState( { showConfirmDialog: false } );
-
-		notices.success(
-			translate( '{{strong}}%(siteDomain)s{{/strong}} is being deleted.', {
-				args: { siteDomain: siteDomain },
-				components: { strong: <strong /> }
-			} )
-		);
-		deleteSite( siteId );
-		SiteListActions.deleteSite( site, error => {
-			if ( ! error ) {
-				page.redirect( '/stats' );
-
-				notices.success(
-					translate( '{{strong}}%(siteDomain)s{{/strong}} has been deleted.', {
-						args: { siteDomain: siteDomain },
-						components: { strong: <strong /> }
-					} )
-				);
-			} else if ( error.error === 'active-subscriptions' ) {
-				error.message = translate( 'You must cancel any active subscriptions prior to deleting your site.' );
-				notices.error( error.message, {
-					button: 'Manage Purchases',
-					showDismiss: false,
-					onClick: this.managePurchases
-				} );
-			} else {
-				notices.error( error.message );
-			}
-		} );
-	}
-
-	_checkSiteLoaded( event ) {
-		if ( ! this.props.site ) {
-			event.preventDefault();
-		}
-	}
-
-	managePurchases() {
-		page( purchasesPaths.purchasesRoot() );
-	}
-
 }
 
 export default connect(
 	( state ) => {
 		const siteId = getSelectedSiteId( state );
 		const site = getSelectedSite( state );
+		const siteSlug = getSelectedSiteSlug( state );
+		const adminUrl = getSiteOption( state, 'admin_url' );
 		return {
-			site,
+			adminUrl,
+			siteId,
+			siteDomain: site ? site.domain : '',
+			siteSlug,
+			siteStillExists: !! getSite( state, siteId ),
 			sitePurchases: getSitePurchases( state, siteId ),
-			hasLoadedSitePurchasesFromServer: hasLoadedSitePurchasesFromServer( state )
+			hasLoadedSitePurchasesFromServer: hasLoadedSitePurchasesFromServer( state ),
+			isDeletingSite: isDeletingSite( state, siteId )
 		};
 	},
 	{
-		deleteSite: () => {}
+		deleteSite,
+		setSelectedSiteId
 	}
 )( localize( DeleteSite ) );
